@@ -30,6 +30,13 @@ The `utilities` folder contains reusable Python modules that streamline common d
   - Analyzing feature relationships
   - Customizing plot aesthetics
 
+- **correlations.py**: A comprehensive module for calculating statistical correlations between different types of variables. This module provides:
+  - Numerical-Numerical correlations using Pearson coefficient
+  - Numerical-Categorical correlations using Point-Biserial (binary) or Correlation Ratio (multi-class)
+  - Categorical-Categorical correlations using Cramer's V
+  - Automatic correlation type detection and calculation
+  - Type-safe implementations with proper error handling
+
 ## 🎵 Music Analysis Projects
 
 ### KKBox Music Recommendation Challenge

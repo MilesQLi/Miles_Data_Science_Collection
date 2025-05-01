@@ -18,11 +18,18 @@ def display_num_corr(df):
 
 def display_basic_info(df):
     # --- Display Initial Info ---
-    print("Dataset Shape:", df.shape)
+    print("======")
+    print("\n Number of Rows and Columns:\n", df.shape)
+    print("======")
     print("\nData Info:\n")
     df.info()
+    print("======")
+    print("\nNumber of Unique Values:\n", df.nunique())
+    print("======")
     print("\nMissing Values:\n", df.isnull().sum())
+    print("======")
     print("\nFirst 5 Rows:\n", df.head())
+    print("======")
     print("\nDescriptive Statistics:\n", df.describe())
     return 
 

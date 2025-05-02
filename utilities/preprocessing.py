@@ -44,12 +44,13 @@ def reduce_mem_usage(df):
 
 # Correcting Skewed feature
 def transform_skewed_feature(df, columns, method='sqrt'):
+    df2 = df.copy()
     for col in columns:
         if method == 'log':
-            df[col] = np.log1p(df[col])
+            df2[col] = np.log1p(df2[col])
         elif method == 'sqrt':
-            df[col] = np.sqrt(df[col])
-    return
+            df2[col] = np.sqrt(df2[col])
+    return df2
 
 
 

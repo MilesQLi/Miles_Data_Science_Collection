@@ -5,51 +5,20 @@ This repository showcases my data science projects and analysis on various publi
 ## 🎯 Project Overview
 
 This portfolio contains:
-- Data analysis notebooks for music recommendation systems
-- Utility tools for data visualization and analysis
+- Data analysis notebooks for real-world datasets
 - Reusable code components for common data science tasks
 
-## 📁 Repository Structure
-
-```
-.
-├── Music/                              # Music-related datasets and analysis
-│   ├── KKBoxs Music Recommendation Challenge/  # KKBox music recommendation analysis
-│   └── Last.FM_dataset/               # Last.fm dataset analysis
-└── utilities/                         # Reusable data science tools
-    └── for_ploting.py                 # Visualization utilities
-```
 
 ## 🛠️ Utilities
 
-The `utilities` folder contains reusable Python modules that streamline common data science tasks:
+The `utilities` folder contains reusable Python modules for data science tasks, including:
+- Data preprocessing functions
+- Data cleaning and transformation utilities
+- Feature engineering tools
+- Visualization utilities
+- Machine learning model evaluation functions
+- Result explanation and interpretation tools
 
-- **for_ploting.py**: A collection of functions for creating insightful visualizations and analyzing relationships between different data columns. This module helps in:
-  - Generating correlation plots
-  - Creating distribution visualizations
-  - Analyzing feature relationships
-  - Customizing plot aesthetics
-
-- **correlations.py**: A comprehensive module for calculating statistical correlations between different types of variables. This module provides:
-  - Numerical-Numerical correlations using Pearson coefficient
-  - Numerical-Categorical correlations using Point-Biserial (binary) or Correlation Ratio (multi-class)
-  - Categorical-Categorical correlations using Cramer's V
-  - Automatic correlation type detection and calculation
-  - Type-safe implementations with proper error handling
-
-## 🎵 Music Analysis Projects
-
-### KKBox Music Recommendation Challenge
-Analysis of user listening behavior and music preferences using the KKBox dataset, focusing on:
-- User behavior patterns
-- Music genre preferences
-- Recommendation system development
-
-### Last.fm Dataset Analysis
-Exploration of the Last.fm dataset to understand:
-- Music listening patterns
-- Artist popularity
-- User preferences and trends
 
 ## 📊 Skills Demonstrated
 

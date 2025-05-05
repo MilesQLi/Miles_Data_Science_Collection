@@ -61,7 +61,7 @@ def shap_explain_model_on_batch(model, train_x, feature_names):
         for cat in categories:
             indices = X[feature] == cat
             if np.any(indices):
-                values = shap_values.values[indices, X.columns.get_loc(feature)]
+                values = shap_values[indices, X.columns.get_loc(feature)]
                 cat_shap_values.append(values)
                 cat_names.append(str(cat))
         

@@ -3,6 +3,100 @@
 from sklearn.model_selection import KFold
 import numpy as np
 import lightgbm as lgb
+from tqdm import tqdm
+import pandas as pd
+from sklearn.utils import resample
+from xgboost import XGBRegressor
+from catboost import CatBoostRegressor
+
+
+
+def stack_model_training(df,target_col,index_cols=[]):
+
+    n_models = 10 
+    base_models = []
+    meta_data = []
+
+
+    X = df.drop([target_col]+index_cols, axis=1)
+    y = df[target_col]
+    
+    print("🚀 Training base models & collecting OOB predictions...")
+    for i in tqdm(range(n_models)):
+        # Bootstrap sample
+        X_sample, y_sample = resample(X, y, replace=True, n_samples=len(X), random_state=i)
+        selected_idx = set(X_sample.index)
+        oob_idx = list(set(X.index) - selected_idx)
+        base_model_params = {
+        'max_depth': 10,
+        'n_estimators': 2000,
+        'learning_rate': 0.0049,
+        'subsample': 0.91,
+        'colsample_bytree': 0.86,
+        'gamma': 0.0014,
+        'reg_alpha': 0.025,
+        'reg_lambda': 0.0106,
+        'min_child_weight': 7,
+        'objective': 'reg:squarederror',
+        'eval_metric': 'rmse',
+        'device': 'cuda'
+        }
+        model = XGBRegressor(**base_model_params)
+    
+        model = model.fit(X_sample, y_sample)
+    
+        base_models.append(model)
+    
+        # Predict on OOB samples  ->for meta model  data  
+        if oob_idx:
+            X_oob = X.loc[oob_idx]
+            y_oob = y.loc[oob_idx]
+            preds_oob = model.predict(X_oob)
+    
+            meta_data.append(pd.DataFrame({
+                "id": X_oob.index,
+                f"pred_model_{i}": preds_oob
+            }).set_index("id"))
+    
+    # Merge all OOB predictions by outer join (union)  
+    print("🔗 Merging OOB predictions...")
+    meta_df = pd.concat(meta_data, axis=1)
+    meta_df = meta_df.groupby(meta_df.index).first() 
+    X_meta = X.loc[meta_df.index].copy()  
+    y_meta = y.loc[meta_df.index]       
+    
+    # Combine original features + predictions from base models
+    X_meta_final = pd.concat([X_meta, meta_df], axis=1).fillna(0)
+
+    print("🎯 Training meta-model (CatBoost)...")
+    meta_model_params = {
+        "iterations": 2000,
+        "learning_rate": 0.05,
+        "depth": 6,
+        "random_state": 42,
+        "task_type": "GPU", 
+        "verbose": 100
+    }
+    meta_model = CatBoostRegressor(**meta_model_params)
+    meta_model.fit(X_meta_final, y_meta)
+    return base_models, meta_model
+
+
+def stack_model_predict(test_df,base_models,meta_model):
+    print("📦 Predicting on test set...")
+    X_test_meta = test_df.copy()
+    
+    for i, model in enumerate(base_models):
+        X_test_meta[f"pred_model_{i}"] = model.predict(test_df)
+    
+    final_preds = meta_model.predict(X_test_meta)
+    return final_preds
+
+
+
+
+
+
 def OOF_predictions(model_class, train_x, train_y, test_x, params=None, early_stopping_rounds = 100, n_splits=5):
     """
     Out-of-Fold (OOF) predictions using KFold cross-validation.

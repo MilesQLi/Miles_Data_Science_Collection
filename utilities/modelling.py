@@ -1,6 +1,6 @@
 
 
-from sklearn.model_selection import KFold
+from sklearn.model_selection import KFold, cross_val_score
 import numpy as np
 import lightgbm as lgb
 from tqdm import tqdm
@@ -11,7 +11,8 @@ from catboost import CatBoostRegressor
 
 
 
-def stack_model_training(df,target_col,index_cols=[]):
+
+def stack_model_training(df,target_col,index_cols=[],cross_val=True):
 
     n_models = 10 
     base_models = []
@@ -79,6 +80,12 @@ def stack_model_training(df,target_col,index_cols=[]):
     }
     meta_model = CatBoostRegressor(**meta_model_params)
     meta_model.fit(X_meta_final, y_meta)
+
+    if cross_val:
+        print("🔬 Performing cross-validation on meta-model...")
+        cv_results = cross_val_score(meta_model, X_meta_final, y_meta, cv=5)
+        print(f"Cross-validation score of meta-model: {np.mean(cv_results)} ± {np.std(cv_results)}")
+
     return base_models, meta_model
 
 

@@ -12,7 +12,7 @@ from catboost import CatBoostRegressor
 
 
 
-def stack_model_training(df,target_col,index_cols=[],cross_val=True):
+def stack_model_training(df, target_col,base_model_class = None, base_model_params = None, meta_model_class = None, meta_model_params = None,index_cols=[],cross_val=True):
 
     n_models = 10 
     base_models = []
@@ -21,13 +21,10 @@ def stack_model_training(df,target_col,index_cols=[],cross_val=True):
 
     X = df.drop([target_col]+index_cols, axis=1)
     y = df[target_col]
-    
-    print("🚀 Training base models & collecting OOB predictions...")
-    for i in tqdm(range(n_models)):
-        # Bootstrap sample
-        X_sample, y_sample = resample(X, y, replace=True, n_samples=len(X), random_state=i)
-        selected_idx = set(X_sample.index)
-        oob_idx = list(set(X.index) - selected_idx)
+
+    if base_model_class is None:
+        base_model_class = XGBRegressor
+        
         base_model_params = {
         'max_depth': 10,
         'n_estimators': 2000,
@@ -42,7 +39,18 @@ def stack_model_training(df,target_col,index_cols=[],cross_val=True):
         'eval_metric': 'rmse',
         'device': 'cuda'
         }
-        model = XGBRegressor(**base_model_params)
+
+    
+    print("🚀 Training base models & collecting OOB predictions...")
+    for i in tqdm(range(n_models)):
+        # Bootstrap sample
+        X_sample, y_sample = resample(X, y, replace=True, n_samples=len(X), random_state=i)
+        selected_idx = set(X_sample.index)
+        oob_idx = list(set(X.index) - selected_idx)
+        if base_model_params is not None:
+            model = base_model_class(**base_model_params)
+        else:
+            model = base_model_class()
     
         model = model.fit(X_sample, y_sample)
     
@@ -69,16 +77,22 @@ def stack_model_training(df,target_col,index_cols=[],cross_val=True):
     # Combine original features + predictions from base models
     X_meta_final = pd.concat([X_meta, meta_df], axis=1).fillna(0)
 
-    print("🎯 Training meta-model (CatBoost)...")
-    meta_model_params = {
-        "iterations": 2000,
-        "learning_rate": 0.05,
-        "depth": 6,
-        "random_state": 42,
-        "task_type": "GPU", 
-        "verbose": 100
-    }
-    meta_model = CatBoostRegressor(**meta_model_params)
+    print("🎯 Training meta-model ...")
+    if meta_model_class is None:
+        meta_model_class = CatBoostRegressor
+        meta_model_params = {
+            "iterations": 2000,
+            "learning_rate": 0.05,
+            "depth": 6,
+            "random_state": 42,
+            "task_type": "GPU", 
+            "verbose": 100
+        }
+    
+    if meta_model_params is not None:
+        meta_model = CatBoostRegressor(**meta_model_params)
+    else:
+        meta_model = CatBoostRegressor()
     meta_model.fit(X_meta_final, y_meta)
 
     if cross_val:

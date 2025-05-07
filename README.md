@@ -9,6 +9,17 @@ This portfolio contains:
 - Reusable code components for common data science tasks
 
 
+## 📂 Projects
+
+<img align="left" width="250" height="250" src="./images/bankchurn.jpeg"> **[Bank Churn Prediction](https://github.com/MilesQLi/Miles_Data_Science_Collection/tree/main/BinaryClassificationWithABankChurnDataset)**
+
+In this project I employed data science to determine the likelihood of a client churn from a bank. I employed a gradient boosting model to predict the client churn and provide insights on the key drivers of churn, enabling proactive retention strategies.
+
+<img align="left" width="250" height="250" src="./images/titanic.jpeg"> **[Titanic Survival Prediction](https://github.com/MilesQLi/Miles_Data_Science_Collection/tree/main/TitanicSurvival)**
+
+In this project I analyzed the survival chance of passengers on Titanic. Explanation techniques applied to the predictive model indicates the major reasons lead to survival or not.
+
+
 ## 🛠️ Utilities
 
 The `utilities` folder contains reusable Python modules for data science tasks, including:
@@ -16,6 +27,7 @@ The `utilities` folder contains reusable Python modules for data science tasks, 
 - Data cleaning and transformation utilities
 - Feature engineering tools
 - Visualization utilities
+- State-of-the-art machine learning model training strategies
 - Machine learning model evaluation functions
 - Result explanation and interpretation tools
 

@@ -1,6 +1,6 @@
 ## Executive Summary: Binary Classification for Bank Churn Prediction
 
-This project addresses the common business problem of customer churn prediction within a banking context. The primary objective was to develop a robust binary classification model to identify customers likely to "Exit," enabling proactive retention strategies.
+This project addresses the common business problem of customer churn prediction within a banking context. The primary objective was to develop a robust binary classification model to identify customers likely to "Exit" and identify key drivers of churn, enabling proactive retention strategies.
 
 **Methodology & Key Achievements:**
 

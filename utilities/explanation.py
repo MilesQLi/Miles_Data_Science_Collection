@@ -19,7 +19,7 @@ def explain_with_model_property(model,feature_names,plot_top_n=10):
 
 
 
-def shap_explain_model_on_batch(model, train_x, feature_names):
+def shap_explain_model_on_batch(model, train_x, feature_names,excluded_cat_features=[]):
     """
     Explain the model using SHAP values.
     This function is useful for tree-based models like LightGBM, XGBoost, etc.
@@ -45,6 +45,7 @@ def shap_explain_model_on_batch(model, train_x, feature_names):
     X = train_x
 
     categorical_features = X.select_dtypes(include=['object', 'category']).columns.tolist()
+    categorical_features = [col for col in categorical_features if col not in excluded_cat_features]
     
     # 4. Create dependence plots for each categorical feature
     for feature in categorical_features:

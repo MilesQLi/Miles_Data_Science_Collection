@@ -1,5 +1,84 @@
 
 
+from sklearn.model_selection import KFold
+import numpy as np
+import lightgbm as lgb
+def OOF_predictions(model_class, train_x, train_y, test_x, params=None, early_stopping_rounds = 100, n_splits=5):
+    """
+    Out-of-Fold (OOF) predictions using KFold cross-validation.
+    """
+
+
+    oof_train = np.zeros(train_x.shape[0])
+    oof_test = np.zeros(test_x.shape[0])
+    
+    kf = KFold(n_splits=n_splits, shuffle=True, random_state=42)
+    
+    for train_index, valid_index in kf.split(train_x):
+        model = model_class(**params) if params else model_class()
+        X_train, X_valid = train_x.iloc[train_index], train_x.iloc[valid_index]
+        y_train, y_valid = train_y.iloc[train_index], train_y.iloc[valid_index]
+
+        model.fit(X_train, y_train, eval_set=[(X_valid, y_valid)], eval_metric='l2', callbacks=[lgb.log_evaluation(period=1), lgb.early_stopping(early_stopping_rounds)])
+        
+        oof_train[valid_index] = model.predict(X_valid)
+        oof_test += model.predict(test_x) / n_splits
+    
+    print(f"OOF Train RMSE: {np.sqrt(np.mean((oof_train - train_y) ** 2)):.4f}")
+
+    return oof_train, oof_test
+
+
+def training_regression_with_lgbm(train_x,train_y,valid_x=None,valid_y=None,params=None,split=None,early_stopping_rounds=100):
+    """
+    Training a regression model using LightGBM.
+    """
+    import lightgbm as lgb
+    from lightgbm import LGBMRegressor
+    from sklearn.model_selection import train_test_split
+
+    if valid_x is None and split is not None:
+        train_x, valid_x, train_y, valid_y = train_test_split(train_x, train_y, test_size=split, random_state=42)
+    
+    object_cols = train_x.select_dtypes(include=['object']).columns.tolist()
+    for col in object_cols:
+        train_x[col] = train_x[col].astype('category')
+        if valid_x is not None:
+            valid_x[col] = valid_x[col].astype('category')
+
+    if params is None:
+        model = LGBMRegressor(verbose=0)
+    else:
+        model = LGBMRegressor(**params, verbose=0)
+    
+    if valid_x is not None and valid_y is not None:
+        model.fit(train_x, train_y, eval_set=[(valid_x, valid_y)], eval_metric='l2', callbacks=[lgb.log_evaluation(period=1), lgb.early_stopping(early_stopping_rounds)])
+    else:
+        model.fit(train_x, train_y, eval_set=[(train_x, train_y)], eval_metric='l2', callbacks=[lgb.log_evaluation(period=1), lgb.early_stopping(early_stopping_rounds)])
+
+    results = model.evals_result_
+    if 'valid_0' in results and 'l2' in results['valid_0']:
+        using_validation = True
+    else:
+        using_validation = False
+    
+    if using_validation:
+        validation_l2 = results['valid_0']['l2']
+    else:
+        validation_l2 = results['training']['l2']
+    iterations = range(1, len(validation_l2) + 1) # Iteration numbers (start from 1)
+    plt.figure(figsize=(10, 6))
+    if using_validation:
+        plt.plot(iterations, validation_l2, label='Validation L2', marker='.')
+    else:
+        plt.plot(iterations, validation_l2, label='Training L2', marker='.')
+    plt.title('L2 vs. Boosting Iteration (Step)')
+    plt.xlabel('Boosting Iteration (Step)')
+    plt.ylabel('L2 Loss')
+
+    return model
+
+
 def training_binary_classification_with_lgbm(train_x,train_y,valid_x=None,valid_y=None,params=None,split=None,early_stopping_rounds=100):
     """
     Training a binary classification model using LightGBM.

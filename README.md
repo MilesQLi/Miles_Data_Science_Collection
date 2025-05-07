@@ -11,14 +11,10 @@ This portfolio contains:
 
 ## 📂 Projects
 
-<img align="left" width="250" height="250" src="./images/bankchurn.jpeg"> **[Bank Churn Prediction](https://github.com/MilesQLi/Miles_Data_Science_Collection/tree/main/BinaryClassificationWithABankChurnDataset)**
-
-In this project I employed data science to determine the likelihood of a client churn from a bank. I employed a gradient boosting model to predict the client churn and provide insights on the key drivers of churn, enabling proactive retention strategies.
-
-<img align="left" width="250" height="250" src="./images/titanic.jpeg"> **[Titanic Survival Prediction](https://github.com/MilesQLi/Miles_Data_Science_Collection/tree/main/TitanicSurvival)**
-
-In this project I analyzed the survival chance of passengers on Titanic. Explanation techniques applied to the predictive model indicates the major reasons lead to survival or not.
-
+| Project Title & Link | Description | Key Techniques & Focus |
+| :--------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------- |
+| **[Bank Churn Prediction](https://github.com/MilesQLi/Miles_Data_Science_Collection/tree/main/BinaryClassificationWithABankChurnDataset)** <img src="./images/bankchurn.jpeg" width="200" alt="Bank Churn Prediction">| Employed data science to determine the likelihood of a client churning from a bank. The project focuses on predicting churn and providing insights into its key drivers, enabling proactive retention strategies. | • EDA <br> • Data Cleaning <br> • Feature Engineering <br> • Modelling   <br> • Explanation & Insights <br> • Proactive Retention |
+| **[Titanic Survival Prediction](https://github.com/MilesQLi/Miles_Data_Science_Collection/tree/main/TitanicSurvival)** <img src="./images/titanic.jpeg" width="200" alt="Titanic Survival Prediction">| Analyzed passenger survival chances on the Titanic. Applied explanation techniques to the predictive model to identify major factors influencing survival outcomes. | • Survival Analysis <br> • Predictive Modeling <br> • Model Explainability (XAI) <br> • Feature Importance |
 
 ## 🛠️ Utilities
 

@@ -8,7 +8,12 @@ The project utilized the classic Titanic dataset, comprising `train.csv` (for mo
 
 **3. Methodology**
 The project followed a standard data science workflow:
-    *   **Exploratory Data Analysis (EDA):** Initial data inspection revealed data types, missing values (notably in 'Age', 'Cabin', and 'Embarked'), and distributions. Bivariate analysis was performed to understand relationships between numerical/categorical features and the 'Survived' target.
+    *   **Exploratory Data Analysis (EDA):** Initial data inspection revealed data types, missing values (notably in 'Age', 'Cabin', and 'Embarked'), and distributions. Bivariate analysis was performed to understand relationships between numerical/categorical features and the 'Survived' target. We can identify obvious correlation between 'Sex' and 'Survived', as well as 'Family Size' and 'Survived'.
+    <img src="sex_survived.png" width="600" alt="sex_survived">
+    <img src="family_size.png" width="600" alt="family_size">
+    Trivariate analysis also shows correlations between two features and "Survived". Such as ("Sex", "Age", "Survived") and ("Sex", "PClass", "Survived").
+    <img src="age_sex_survived.png" width="700" alt="age_sex_survived">
+    <img src="sex_pclass_survived.png" width="700" alt="sex_pclass_survived"> 
     *   **Feature Engineering:** Several new features were created to enhance predictive power:
         *   `Family Size`: Sum of 'SibSp' (siblings/spouses) and 'Parch' (parents/children) plus 1.
         *   `Age Interval` & `Fare Interval`: Binned versions of 'Age' and 'Fare'.
@@ -30,15 +35,14 @@ The project followed a standard data science workflow:
 ![shap0](shap0.png)
 *   **Feature Influence (Insights from IFFNN and general LightGBM/Titanic knowledge):**
     The IFFNN's `explain` method provided direct feature contributions for individual predictions, and combined with general knowledge from Titanic SHAP analyses, the following influences were observed:
-![sex_pclass](sex_pclass.png)
+<img src="sex_pclass.png" width="600" alt="sex_pclass">
     *   **Positive Influence on Survival (Higher Chance):**
         *   **`Title` ("Miss.", "Mrs."):** Female titles consistently showed a strong positive contribution to survival probability.
         *   **`Sex & Class` (Female):** Being female and locating in a high class cabin significantly increased survival chances. This is also reflected in combined features like `Sex_Pclass_F_C2`.
         *   **`Fare` / `Fare Interval` (Higher values):** Passengers who paid higher fares (often indicative of higher class or better cabin location) had a greater chance of survival. For example, a `Fare Interval` of 3.0 showed a strong positive contribution.
         *   **`Deck` (Specific Decks like 'C', 'E'):** Being on certain decks (e.g., 'C' from Cabin 'C85', or 'E' from 'E121') positively influenced survival, likely due to proximity to lifeboats or higher passenger class.
         *   **`Age Interval` (Younger):** Children generally had a higher survival chance, although this could be nuanced. For instance, an `Age Interval` of 3.0 (older adults) also showed a positive influence in one IFFNN sample, possibly due to interaction with other high-survival-probability features like high fare.
-
-![sex](sex.png)
+<img src="sex.png" width="600" alt="sex_pclass">
     *   **Negative Influence on Survival (Lower Chance):**
         *   **`Sex` (Male):** Being male strongly decreased survival chances. This is prominent in features like `Sex_male` and `Sex_Pclass_M_C3`.
         *   **`Pclass` (3rd Class):** Passengers in the 3rd class had a significantly lower chance of survival. This was evident in `Pclass` itself and in interaction terms like `Sex_Pclass_M_C3`. Even Pclass 1 or 2 could show negative *relative* contribution in the IFFNN if other features in a sample were overwhelmingly positive (e.g., very high fare might make Pclass 1's positive impact seem less significant than the fare itself).

@@ -1,5 +1,118 @@
 
+import pandas as pd
+import numpy as np
+from sklearn.neural_network import MLPRegressor
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split # For potential early stopping, though not strictly required here
 
+def impute_target_with_mlp(df: pd.DataFrame, target_column: str, feature_columns: list) -> pd.DataFrame:
+    """
+    Imputes missing values in a target column of a Pandas DataFrame using MLPRegressor.
+
+    Args:
+        df (pd.DataFrame): The input DataFrame.
+        target_column (str): The name of the column with missing values to be imputed.
+        feature_columns (list): A list of column names to be used as features for imputation.
+
+    Returns:
+        pd.DataFrame: A new DataFrame with the target column's missing values imputed.
+    """
+    if not isinstance(df, pd.DataFrame):
+        raise TypeError("Input 'df' must be a pandas DataFrame.")
+    if not isinstance(target_column, str):
+        raise TypeError("Input 'target_column' must be a string.")
+    if not isinstance(feature_columns, list) or not all(isinstance(col, str) for col in feature_columns):
+        raise TypeError("Input 'feature_columns' must be a list of strings.")
+    if target_column not in df.columns:
+        raise ValueError(f"Target column '{target_column}' not found in DataFrame.")
+    for col in feature_columns:
+        if col not in df.columns:
+            raise ValueError(f"Feature column '{col}' not found in DataFrame.")
+    if target_column in feature_columns:
+        print(f"Warning: Target column '{target_column}' is also in feature_columns. "
+              "This might lead to data leakage if not handled carefully during training/prediction separation.")
+
+    df_imputed = df.copy()
+
+    # Identify rows with missing and non-missing target values
+    missing_mask = df_imputed[target_column].isnull()
+    
+    # If no missing values, return the original dataframe copy
+    if not missing_mask.any():
+        print(f"No missing values found in the target column '{target_column}'.")
+        return df_imputed
+
+    train_df = df_imputed[~missing_mask]
+    predict_df = df_imputed[missing_mask]
+
+    # If no data to train on, cannot impute
+    if train_df.empty:
+        print(f"No non-missing values in '{target_column}' to train the imputer. Returning original DataFrame.")
+        return df_imputed
+        
+    # If no features provided, cannot use MLP
+    if not feature_columns:
+        print("No feature columns provided. Cannot use MLP for imputation. Returning original DataFrame.")
+        # Optionally, you could fall back to simple mean/median imputation of the target here
+        # target_mean = df_imputed[target_column].mean() # or median()
+        # df_imputed[target_column].fillna(target_mean, inplace=True)
+        return df_imputed
+
+    X_train_raw = train_df[feature_columns]
+    y_train = train_df[target_column]
+    X_predict_raw = predict_df[feature_columns]
+    
+    # If there's nothing to predict (e.g. all values were non-missing originally, though caught above)
+    if X_predict_raw.empty:
+        return df_imputed # Should be caught by `if not missing_mask.any():`
+
+    # 1. Impute missing values in FEATURES (if any)
+    # Important: Fit imputer on training features only, then transform both train and predict features
+    feature_imputer = SimpleImputer(strategy='mean') 
+    X_train_imputed_features = feature_imputer.fit_transform(X_train_raw)
+    X_predict_imputed_features = feature_imputer.transform(X_predict_raw)
+
+    # Convert back to DataFrame to keep column names for clarity, though not strictly necessary for scaler
+    X_train_imputed_features_df = pd.DataFrame(X_train_imputed_features, columns=feature_columns, index=X_train_raw.index)
+    X_predict_imputed_features_df = pd.DataFrame(X_predict_imputed_features, columns=feature_columns, index=X_predict_raw.index)
+
+    # 2. Scale features
+    # Important: Fit scaler on training features only, then transform both train and predict features
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train_imputed_features_df)
+    X_predict_scaled = scaler.transform(X_predict_imputed_features_df)
+
+    # 3. Define and train MLP Regressor
+    num_features = X_train_scaled.shape[1]
+    if num_features == 0: # Should be caught by "if not feature_columns:"
+        print("No features available after processing. Cannot train MLP.")
+        return df_imputed
+        
+    hidden_layer_size = max(1, int(num_features / 2)) # Ensure at least 1 unit
+
+    mlp = MLPRegressor(
+        hidden_layer_sizes=(hidden_layer_size,),
+        activation='relu',         # Common choice
+        solver='adam',             # Efficient for large datasets
+        max_iter=500,              # Increase if model doesn't converge
+        random_state=42,           # For reproducibility
+        early_stopping=True,       # To prevent overfitting and stop early
+        n_iter_no_change=10        # How many iterations with no improvement to wait
+    )
+
+    print(f"Training MLPRegressor with hidden_layer_sizes=({hidden_layer_size},) for target '{target_column}'...")
+    mlp.fit(X_train_scaled, y_train)
+
+    # 4. Predict missing values
+    print("Predicting missing values...")
+    predicted_values = mlp.predict(X_predict_scaled)
+
+    # 5. Fill missing values in the copied DataFrame
+    df_imputed.loc[missing_mask, target_column] = predicted_values
+    print(f"Imputation complete for column '{target_column}'.")
+
+    return df_imputed
 
 def immput_median(data, features):
     """

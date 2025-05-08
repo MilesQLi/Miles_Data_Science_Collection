@@ -3,12 +3,149 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
 
+import scipy.stats as ss
+
 from pandas.api.types import is_numeric_dtype, is_categorical_dtype, is_string_dtype
 
 
 # Set a professional and clean theme globally
 sns.set_theme(style="whitegrid", palette="viridis") # "whitegrid", "darkgrid", "ticks", "white"
                                             # Palettes: "pastel", "muted", "bright", "viridis", "Set2", etc.
+
+
+# --- Helper functions for association measures ---
+
+def cramers_v(x, y):
+    """
+    Calculates Cramér's V statistic for categorical-categorical association.
+    x, y are pandas Series.
+    """
+    # Drop NaNs for contingency table calculation
+    x_y_df = pd.DataFrame({'x': x, 'y': y}).dropna()
+    if x_y_df.empty:
+        return np.nan # Or 0, depending on how you want to treat fully NaN pairs
+
+    confusion_matrix = pd.crosstab(x_y_df['x'], x_y_df['y'])
+    if confusion_matrix.empty or confusion_matrix.shape[0] < 2 or confusion_matrix.shape[1] < 2:
+        # Not enough data or diversity for chi-squared
+        return 0.0 # No association if not enough data to compute
+
+    chi2 = ss.chi2_contingency(confusion_matrix, correction=False)[0]
+    n = confusion_matrix.sum().sum()
+    phi2 = chi2 / n
+    r, k = confusion_matrix.shape
+    
+    # Bias correction
+    phi2corr = max(0, phi2 - ((k-1)*(r-1))/(n-1))
+    rcorr = r - ((r-1)**2)/(n-1)
+    kcorr = k - ((k-1)**2)/(n-1)
+    
+    if min((kcorr-1), (rcorr-1)) == 0:
+        # This can happen if one variable has only one category after bias correction
+        # or if n is too small.
+        return 0.0 # Or np.nan, depending on preference
+    
+    return np.sqrt(phi2corr / min((kcorr-1), (rcorr-1)))
+
+
+def correlation_ratio(categorical_series, numerical_series):
+    """
+    Calculates the Correlation Ratio (eta) for categorical-numerical association.
+    Measures how well the categorical variable explains the numerical variable.
+    """
+    # Drop NaNs based on the pair
+    df_pair = pd.DataFrame({'cat': categorical_series, 'num': numerical_series}).dropna()
+    if df_pair.empty or df_pair['cat'].nunique() < 2 or df_pair['num'].nunique() < 1:
+        return 0.0 # Not enough data or diversity
+
+    cat_series_clean = df_pair['cat']
+    num_series_clean = df_pair['num']
+
+    # Calculate means
+    mean_num_overall = num_series_clean.mean()
+    
+    # Sum of squares between groups (SSB)
+    ssb = 0
+    for category in cat_series_clean.unique():
+        num_in_category = num_series_clean[cat_series_clean == category]
+        if not num_in_category.empty:
+            ssb += len(num_in_category) * (num_in_category.mean() - mean_num_overall)**2
+            
+    # Total sum of squares (SST)
+    sst = ((num_series_clean - mean_num_overall)**2).sum()
+    
+    if sst == 0: # Avoid division by zero if all numerical values are the same
+        return 0.0
+        
+    eta_squared = ssb / sst
+    return np.sqrt(eta_squared) # eta is sqrt of eta-squared
+
+
+# --- Main plotting function ---
+
+def plot_mixed_correlation_heatmap(df, features, figsize=(12, 10), cmap="coolwarm", annot_fontsize=8):
+    """
+    Plots a heatmap of correlations/associations for a mixed-type DataFrame.
+
+    Args:
+        df (pd.DataFrame): The input DataFrame.
+        features (list): A list of column names to include in the heatmap.
+        figsize (tuple): Figure size for the plot.
+        cmap (str): Colormap for the heatmap.
+        annot_fontsize (int): Fontsize for annotations on the heatmap.
+    """
+    if not features:
+        print("No features provided to plot.")
+        return
+    
+    df_subset = df[features].copy() # Work on a copy
+    
+    # Identify numerical and categorical columns
+    numerical_cols = df_subset.select_dtypes(include=np.number).columns.tolist()
+    categorical_cols = df_subset.select_dtypes(include=['object', 'category']).columns.tolist()
+
+    # Initialize an empty correlation matrix
+    corr_matrix = pd.DataFrame(index=features, columns=features, dtype=float)
+
+    for i, col1 in enumerate(features):
+        for j, col2 in enumerate(features):
+            if i > j: # Matrix is symmetric, only compute upper triangle + diagonal
+                continue
+
+            val = np.nan # Default if something goes wrong
+
+            if col1 == col2:
+                val = 1.0
+            elif col1 in numerical_cols and col2 in numerical_cols:
+                # Pearson correlation for num-num
+                # Handle potential full NaN columns after pairwise deletion
+                pair_corr = df_subset[[col1, col2]].corr().iloc[0, 1]
+                val = pair_corr if not np.isnan(pair_corr) else 0.0
+            elif col1 in categorical_cols and col2 in categorical_cols:
+                # Cramér's V for cat-cat
+                val = cramers_v(df_subset[col1], df_subset[col2])
+            elif (col1 in numerical_cols and col2 in categorical_cols) or \
+                 (col1 in categorical_cols and col2 in numerical_cols):
+                # Correlation Ratio for num-cat
+                num_col = col1 if col1 in numerical_cols else col2
+                cat_col = col2 if col1 in numerical_cols else col1
+                val = correlation_ratio(df_subset[cat_col], df_subset[num_col])
+            
+            corr_matrix.loc[col1, col2] = val
+            corr_matrix.loc[col2, col1] = val # Fill symmetrically
+
+    plt.figure(figsize=figsize)
+    sns.heatmap(corr_matrix, annot=True, fmt=".2f", cmap=cmap, 
+                linewidths=.5, cbar=True, vmin=-1, vmax=1, center=0,
+                annot_kws={"size": annot_fontsize})
+    plt.title(f"Mixed Feature Correlation/Association Heatmap ({len(features)} features)", fontsize=15)
+    plt.xticks(rotation=45, ha='right')
+    plt.yticks(rotation=0)
+    plt.tight_layout()
+    plt.show()
+
+def get_duplicated_lines(df):
+    return df[df.duplicated()]
 
 def plot_one_num_two_cat(df,num,cat,tar):
     sns.displot(data=df, x=num,hue=cat, col=tar,  kde=True)
@@ -151,6 +288,8 @@ def display_basic_info(df):
     print("\nNumber of Duplicated Data:\n", df.duplicated().sum())
     
     return 
+
+
 
 def plot_all_num_vs_target(df, target_col, exclude_cols=None, palette="viridis"):
     """

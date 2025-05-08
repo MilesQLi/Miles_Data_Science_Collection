@@ -67,10 +67,25 @@ def stack_model_training(df, target_col,base_model_class = None, base_model_para
                 f"pred_model_{i}": preds_oob
             }).set_index("id"))
     
+
     # Merge all OOB predictions by outer join (union)  
     print("🔗 Merging OOB predictions...")
     meta_df = pd.concat(meta_data, axis=1)
     meta_df = meta_df.groupby(meta_df.index).first() 
+    
+    predicted_mean = meta_df.mean(axis=1)
+    predicted_median = meta_df.median(axis=1)
+    predicted_std = meta_df.std(axis=1)
+    predicted_min = meta_df.min(axis=1)
+    predicted_max = meta_df.max(axis=1)
+
+    meta_df["predicted_mean"] = predicted_mean
+    meta_df["predicted_std"] = predicted_std
+    meta_df["predicted_min"] = predicted_min
+    meta_df["predicted_max"] = predicted_max
+    meta_df["predicted_median"] = predicted_median
+
+
     X_meta = X.loc[meta_df.index].copy()  
     y_meta = y.loc[meta_df.index]       
     
@@ -109,10 +124,14 @@ def stack_model_predict(test_df,base_models,meta_model):
     
     for i, model in enumerate(base_models):
         X_test_meta[f"pred_model_{i}"] = model.predict(test_df)
-    
+    base_model_pred_cols = [X for X in X_test_meta.columns if 'pred_model_' in X]
+    X_test_meta['predicted_mean'] = X_test_meta[base_model_pred_cols].mean(axis=1)
+    X_test_meta['predicted_std'] = X_test_meta[base_model_pred_cols].std(axis=1)
+    X_test_meta['predicted_median'] = X_test_meta[base_model_pred_cols].median(axis=1)
+    X_test_meta['predicted_min'] = X_test_meta[base_model_pred_cols].min(axis=1)
+    X_test_meta['predicted_max'] = X_test_meta[base_model_pred_cols].max(axis=1)
     final_preds = meta_model.predict(X_test_meta)
     return final_preds
-
 
 
 
@@ -429,3 +448,289 @@ def evaluate_regression_model(model, name, test_x, test_y):
     plt.ylabel('Residuals')
     plt.title(f'{name} - Residual Plot')
     plt.show()
+
+
+
+def tune_lgbm_optuna(
+    X_train, y_train,
+    model_type='classifier',  # 'classifier' or 'regressor'
+    n_trials=100,
+    cv=5,  # Number of CV folds or a CV splitter object
+    scoring=None, # Sklearn scoring string, e.g., 'roc_auc', 'neg_mean_squared_error'
+    early_stopping_rounds=50, # For LGBM early stopping within trials
+    fixed_params=None, # Dictionary of fixed parameters for LGBM
+    X_eval=None, # Optional evaluation set for final model training early stopping
+    y_eval=None, # Optional evaluation set for final model training early stopping
+    random_state=42
+):
+    """
+    Finetunes LGBMClassifier or LGBMRegressor hyperparameters using Optuna.
+
+    Args:
+        X_train (pd.DataFrame or np.ndarray): Training features.
+        y_train (pd.Series or np.ndarray): Training target.
+        model_type (str): 'classifier' or 'regressor'.
+        n_trials (int): Number of Optuna optimization trials.
+        cv (int or CV splitter): Cross-validation strategy.
+        scoring (str, optional): Scorer string. Defaults based on model_type.
+                                 For classifier: 'roc_auc' (binary) or 'accuracy' (multiclass).
+                                 For regressor: 'neg_mean_squared_error'.
+        early_stopping_rounds (int, optional): LGBM early stopping rounds. If None, disabled.
+        fixed_params (dict, optional): Parameters to fix for LGBM model.
+        X_eval (pd.DataFrame or np.ndarray, optional): Evaluation features for final model's early stopping.
+        y_eval (pd.Series or np.ndarray, optional): Evaluation target for final model's early stopping.
+        random_state (int): Random seed for reproducibility.
+
+    Returns:
+        tuple: (best_params, best_model)
+               best_params (dict): Dictionary of the best hyperparameters.
+               best_model (lgb.LGBMClassifier or lgb.LGBMRegressor): Trained model with best params.
+    """
+    import optuna
+    import lightgbm as lgb
+    from sklearn.model_selection import cross_val_score, KFold, StratifiedKFold
+    from sklearn.metrics import make_scorer, roc_auc_score, accuracy_score, mean_squared_error, r2_score
+    import numpy as np
+    import pandas as pd # For isinstance checks if X, y are pandas Series/DataFrame
+
+    if fixed_params is None:
+        fixed_params = {}
+
+    # Determine default objective, metric, and Optuna direction based on model_type
+    if model_type == 'classifier':
+        # Check if it's binary or multiclass classification
+        if isinstance(y_train, (pd.Series, np.ndarray)):
+            num_classes = len(np.unique(y_train))
+        else: # Assume list-like
+            num_classes = len(set(y_train))
+
+        if num_classes == 2:
+            default_objective = 'binary'
+            default_lgbm_metric = 'binary_logloss' # or 'auc'
+            if scoring is None:
+                scoring = 'roc_auc'
+            optuna_direction = 'maximize'
+        else:
+            default_objective = 'multiclass'
+            default_lgbm_metric = 'multi_logloss' # or 'multi_error'
+            fixed_params['num_class'] = num_classes # Required for multiclass
+            if scoring is None:
+                scoring = 'accuracy' # Or f1_macro, etc.
+            # For metrics like accuracy, f1_score, roc_auc_ovr -> maximize
+            # For metrics like log_loss -> minimize
+            if scoring in ['accuracy', 'f1_weighted', 'f1_macro', 'f1_micro', 'roc_auc_ovr', 'roc_auc_ovo']:
+                optuna_direction = 'maximize'
+            elif scoring in ['neg_log_loss']: # sklearn's log_loss is negative
+                 optuna_direction = 'maximize'
+            else: # e.g. if user passes 'log_loss' which is not sklearn standard for cross_val_score
+                print(f"Warning: scoring '{scoring}' for multiclass. Assuming higher is better. Adjust optuna_direction if needed.")
+                optuna_direction = 'maximize'
+
+    elif model_type == 'regressor':
+        default_objective = 'regression'
+        default_lgbm_metric = 'rmse' # or 'l2', 'mae'
+        if scoring is None:
+            scoring = 'neg_mean_squared_error'
+        # For neg_mean_squared_error, neg_root_mean_squared_error, r2 -> maximize
+        # For mean_squared_error, root_mean_squared_error, mean_absolute_error -> minimize
+        if scoring in ['neg_mean_squared_error', 'neg_root_mean_squared_error', 'neg_mean_absolute_error', 'r2']:
+            optuna_direction = 'maximize'
+        elif scoring in ['mean_squared_error', 'root_mean_squared_error', 'mean_absolute_error']:
+            optuna_direction = 'minimize'
+            print(f"Warning: Scoring '{scoring}' implies minimization. Make sure Optuna direction is set correctly if you override this logic.")
+        else:
+            print(f"Warning: scoring '{scoring}' for regression. Assuming higher is better. Adjust optuna_direction if needed.")
+            optuna_direction = 'maximize'
+    else:
+        raise ValueError("model_type must be 'classifier' or 'regressor'")
+
+    # --- Objective Function for Optuna ---
+    def objective(trial):
+        # Define search space for hyperparameters
+        param_grid = {
+            "objective": default_objective,
+            "metric": default_lgbm_metric, # Metric for LGBM internal eval, can differ from `scoring`
+            "random_state": random_state,
+            "n_estimators": trial.suggest_int("n_estimators", 100, 2000, step=50),
+            "learning_rate": trial.suggest_float("learning_rate", 1e-3, 0.3, log=True),
+            "num_leaves": trial.suggest_int("num_leaves", 20, 300),
+            "max_depth": trial.suggest_int("max_depth", 3, 12),
+            "min_child_samples": trial.suggest_int("min_child_samples", 5, 100),
+            "subsample": trial.suggest_float("subsample", 0.6, 1.0, step=0.05), # Bagging fraction
+            "colsample_bytree": trial.suggest_float("colsample_bytree", 0.4, 1.0, step=0.05), # Feature fraction
+            "reg_alpha": trial.suggest_float("reg_alpha", 1e-8, 10.0, log=True), # L1
+            "reg_lambda": trial.suggest_float("reg_lambda", 1e-8, 10.0, log=True), # L2
+            # "boosting_type": trial.suggest_categorical("boosting_type", ["gbdt", "dart", "goss"]), # Can add if desired
+        }
+
+        if model_type == 'classifier' and num_classes == 2: # Only for binary
+            param_grid["class_weight"] = trial.suggest_categorical("class_weight", [None, "balanced"])
+        
+        # Incorporate fixed parameters
+        param_grid.update(fixed_params)
+
+        # --- Model Instantiation ---
+        if model_type == 'classifier':
+            model = lgb.LGBMClassifier(**param_grid)
+        else: # regressor
+            model = lgb.LGBMRegressor(**param_grid)
+
+        # --- Cross-validation with Early Stopping and Pruning ---
+        fit_params = {}
+        callbacks = []
+
+        if early_stopping_rounds:
+            # Note: cross_val_score doesn't easily support dynamic eval_sets per fold for early stopping.
+            # For robust early stopping with pruning, a manual CV loop is better.
+            # However, for simplicity here, we'll use LightGBMPruningCallback which works with
+            # LGBM's internal CV or if eval_set is passed to fit.
+            # For cross_val_score, early stopping is applied *after* the split, using a portion of the
+            # training data of that fold as eval set, which is not ideal.
+            # A more advanced setup would loop through CV folds manually.
+
+            # Let's create a proper CV splitter
+            if isinstance(cv, int):
+                if model_type == 'classifier':
+                    # Stratified K-Folds for classification
+                    cv_splitter = StratifiedKFold(n_splits=cv, shuffle=True, random_state=random_state)
+                else:
+                    # Regular K-Folds for regression
+                    cv_splitter = KFold(n_splits=cv, shuffle=True, random_state=random_state)
+            else: # User provided a CV splitter object
+                cv_splitter = cv
+
+            scores = []
+            # Manual CV loop to properly handle early stopping and pruning with distinct eval sets
+            for train_idx, val_idx in cv_splitter.split(X_train, y_train):
+                X_fold_train, X_fold_val = X_train.iloc[train_idx] if hasattr(X_train, 'iloc') else X_train[train_idx], \
+                                           X_train.iloc[val_idx] if hasattr(X_train, 'iloc') else X_train[val_idx]
+                y_fold_train, y_fold_val = y_train.iloc[train_idx] if hasattr(y_train, 'iloc') else y_train[train_idx], \
+                                           y_train.iloc[val_idx] if hasattr(y_train, 'iloc') else y_train[val_idx]
+                
+                current_callbacks = []
+                if early_stopping_rounds:
+                    current_callbacks.append(lgb.early_stopping(stopping_rounds=early_stopping_rounds, verbose=-1))
+                    # Pruning callback for Optuna
+                    pruning_callback = optuna.integration.LightGBMPruningCallback(trial, "l2" if default_lgbm_metric == "rmse" else default_lgbm_metric) # Use lgbm's metric
+                    current_callbacks.append(pruning_callback)
+
+                model.fit(X_fold_train, y_fold_train,
+                          eval_set=[(X_fold_val, y_fold_val)],
+                          eval_metric=default_lgbm_metric, # Use lgbm's metric name
+                          callbacks=current_callbacks)
+
+                # Make predictions and score
+                if scoring == 'roc_auc' and model_type == 'classifier': # Requires predict_proba
+                    preds = model.predict_proba(X_fold_val)[:, 1]
+                    score = roc_auc_score(y_fold_val, preds)
+                elif scoring == 'accuracy' and model_type == 'classifier':
+                    preds = model.predict(X_fold_val)
+                    score = accuracy_score(y_fold_val, preds)
+                elif scoring == 'neg_mean_squared_error' and model_type == 'regressor':
+                    preds = model.predict(X_fold_val)
+                    score = -mean_squared_error(y_fold_val, preds) # Optuna maximizes
+                elif scoring == 'r2' and model_type == 'regressor':
+                    preds = model.predict(X_fold_val)
+                    score = r2_score(y_fold_val, preds)
+                else: # Fallback to generic scorer if not explicitly handled
+                    # This requires a custom scorer or ensuring 'scoring' matches sklearn's names
+                    # For simplicity, we'll assume the common ones are handled.
+                    # If you use a different scorer, you might need to adjust this part.
+                    # Example: y_pred = model.predict(X_fold_val)
+                    # scikit_scorer = get_scorer(scoring)
+                    # score = scikit_scorer(model, X_fold_val, y_fold_val) # This would refit, not ideal
+                    # Better to predict then score:
+                    if hasattr(model, "predict_proba"): # Classifier
+                        try:
+                            preds_proba = model.predict_proba(X_fold_val)
+                            # Handle multiclass for scorers like roc_auc_ovr
+                            if scoring.startswith('roc_auc_') and preds_proba.shape[1] > 2:
+                                score = make_scorer(globals()[scoring.split("_")[0] + "_score"], needs_proba=True, **({'average': scoring.split("_")[-1]} if len(scoring.split("_")) > 2 else {}))(model, X_fold_val, y_fold_val)
+                            else:
+                                score = make_scorer(globals()[scoring.replace('neg_','').split("_")[0] + "_score"], needs_proba=True)(model, X_fold_val, y_fold_val)
+
+                        except: # Fallback to predict
+                            preds = model.predict(X_fold_val)
+                            score_func_name = scoring.replace('neg_','') # e.g. neg_mean_squared_error -> mean_squared_error
+                            score_val = globals()[score_func_name + "_score"](y_fold_val, preds)
+                            if scoring.startswith('neg_'):
+                                score = -score_val
+                            else:
+                                score = score_val
+                    else: # Regressor
+                        preds = model.predict(X_fold_val)
+                        score_func_name = scoring.replace('neg_','')
+                        score_val = globals()[score_func_name + "_score"](y_fold_val, preds)
+                        if scoring.startswith('neg_'):
+                            score = -score_val
+                        else:
+                            score = score_val
+                scores.append(score)
+            
+            # If all folds were pruned, this might be empty or contain NaNs
+            if not scores or np.isnan(np.mean(scores)):
+                return -np.inf if optuna_direction == 'maximize' else np.inf # Penalize heavily
+
+            return np.mean(scores)
+
+        else: # No early stopping, use simple cross_val_score
+            # Note: Pruning is not effective without early stopping in this setup
+            if isinstance(cv, int):
+                if model_type == 'classifier':
+                    cv_splitter = StratifiedKFold(n_splits=cv, shuffle=True, random_state=random_state)
+                else:
+                    cv_splitter = KFold(n_splits=cv, shuffle=True, random_state=random_state)
+            else:
+                cv_splitter = cv
+            
+            score = cross_val_score(model, X_train, y_train, cv=cv_splitter, scoring=scoring, fit_params=None)
+            return score.mean()
+
+    # --- Run Optuna Study ---
+    study = optuna.create_study(direction=optuna_direction, pruner=optuna.pruners.MedianPruner() if early_stopping_rounds else None)
+    study.optimize(objective, n_trials=n_trials, show_progress_bar=True)
+
+    best_params = study.best_params
+    print(f"\nBest trial score ({scoring}): {study.best_value}")
+    print(f"Best hyperparameters: {best_params}")
+
+    # --- Train Final Model with Best Parameters ---
+    final_params = {
+        "objective": default_objective,
+        "metric": default_lgbm_metric,
+        "random_state": random_state,
+    }
+    final_params.update(fixed_params) # Add user-fixed params
+    final_params.update(best_params)  # Add Optuna-found params (will override defaults if overlapping)
+    
+    if 'num_class' in fixed_params: # Ensure num_class from fixed_params is used if multiclass
+        final_params['num_class'] = fixed_params['num_class']
+
+
+    if model_type == 'classifier':
+        best_model = lgb.LGBMClassifier(**final_params)
+    else:
+        best_model = lgb.LGBMRegressor(**final_params)
+
+    fit_final_params = {}
+    final_callbacks = []
+    if early_stopping_rounds and X_eval is not None and y_eval is not None:
+        print("Training final model with early stopping using provided X_eval, y_eval.")
+        fit_final_params['eval_set'] = [(X_eval, y_eval)]
+        fit_final_params['eval_metric'] = default_lgbm_metric
+        final_callbacks.append(lgb.early_stopping(stopping_rounds=early_stopping_rounds, verbose=False if n_trials > 1 else True)) # Verbose only if not many trials
+        fit_final_params['callbacks'] = final_callbacks
+    elif early_stopping_rounds:
+        print("Warning: `early_stopping_rounds` is set, but no `X_eval`, `y_eval` provided for final model training.")
+        print("Final model will be trained without early stopping on the full dataset, using n_estimators from best trial.")
+        # n_estimators is already in final_params from best_params
+
+    best_model.fit(X_train, y_train, **fit_final_params)
+    
+    if early_stopping_rounds and best_model.best_iteration_:
+        print(f"Final model trained with {best_model.best_iteration_} iterations due to early stopping.")
+        # Update n_estimators in best_params to reflect the actual number used
+        best_params['n_estimators'] = best_model.best_iteration_
+
+
+    return best_params, best_model

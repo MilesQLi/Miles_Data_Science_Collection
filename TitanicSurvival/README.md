@@ -38,16 +38,14 @@ The project followed a standard data science workflow:
 ![shap0](shap0.png)
 *   **Feature Influence (Insights from IFFNN and general LightGBM/Titanic knowledge):**
     The IFFNN's `explain` method provided direct feature contributions for individual predictions, and combined with general knowledge from Titanic SHAP analyses, the following influences were observed:
-<img src="sex_pclass.png" width="600" alt="sex_pclass">
-
+![sex_pclass](sex_pclass.png)
     *   **Positive Influence on Survival (Higher Chance):**
         *   **`Title` ("Miss.", "Mrs."):** Female titles consistently showed a strong positive contribution to survival probability.
         *   **`Sex & Class` (Female):** Being female and locating in a high class cabin significantly increased survival chances. This is also reflected in combined features like `Sex_Pclass_F_C2`.
         *   **`Fare` / `Fare Interval` (Higher values):** Passengers who paid higher fares (often indicative of higher class or better cabin location) had a greater chance of survival. For example, a `Fare Interval` of 3.0 showed a strong positive contribution.
         *   **`Deck` (Specific Decks like 'C', 'E'):** Being on certain decks (e.g., 'C' from Cabin 'C85', or 'E' from 'E121') positively influenced survival, likely due to proximity to lifeboats or higher passenger class.
         *   **`Age Interval` (Younger):** Children generally had a higher survival chance, although this could be nuanced. For instance, an `Age Interval` of 3.0 (older adults) also showed a positive influence in one IFFNN sample, possibly due to interaction with other high-survival-probability features like high fare.
-<img src="sex.png" width="600" alt="sex_pclass">
-
+![sex](sex.png)
     *   **Negative Influence on Survival (Lower Chance):**
         *   **`Sex` (Male):** Being male strongly decreased survival chances. This is prominent in features like `Sex_male` and `Sex_Pclass_M_C3`.
         *   **`Pclass` (3rd Class):** Passengers in the 3rd class had a significantly lower chance of survival. This was evident in `Pclass` itself and in interaction terms like `Sex_Pclass_M_C3`. Even Pclass 1 or 2 could show negative *relative* contribution in the IFFNN if other features in a sample were overwhelmingly positive (e.g., very high fare might make Pclass 1's positive impact seem less significant than the fare itself).

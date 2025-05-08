@@ -76,6 +76,7 @@ def shap_explain_model_on_batch(model, train_x, feature_names,excluded_cat_featu
         plt.grid(axis='y', linestyle='--', alpha=0.7)
         plt.tight_layout()
         plt.show()
+    return shap_values
     
 
 def shap_explain_model_on_single(model, sample, feature_names):

@@ -144,6 +144,55 @@ def plot_mixed_correlation_heatmap(df, features, figsize=(12, 10), cmap="coolwar
     plt.tight_layout()
     plt.show()
 
+
+def plot_2d_scatter_with_color_encoding(df: pd.DataFrame, x_col: str, y_col: str, color_col: str):
+    """
+    Generates a 2D scatter plot where point color is determined by a third numerical column.
+    This revised version relies on Seaborn's automatic colorbar generation.
+
+    Args:
+        df (pd.DataFrame): The DataFrame containing the data.
+        x_col (str): Name of the column for the X-axis.
+        y_col (str): Name of the column for the Y-axis.
+        color_col (str): Name of the column whose values determine point color.
+    """
+    # Basic validation
+    for col in [x_col, y_col, color_col]:
+        if col not in df.columns:
+            print(f"Error: Column '{col}' not found in DataFrame.")
+            return
+        if not pd.api.types.is_numeric_dtype(df[col]):
+            print(f"Error: Column '{col}' is not numeric.")
+            return
+
+    plt.figure(figsize=(10, 7))
+    
+    # Seaborn's scatterplot returns the Axes object.
+    # For a continuous `hue` variable, it automatically adds and configures a colorbar.
+    ax = sns.scatterplot(data=df, x=x_col, y=y_col, hue=color_col,
+                         palette='viridis', s=70, alpha=0.8) # legend='auto' is default
+
+    ax.set_xlabel(x_col)
+    ax.set_ylabel(y_col)
+    ax.set_title(f'2D Scatter: {x_col} vs {y_col} (Color by {color_col})')
+    
+    # Seaborn usually sets the colorbar label automatically based on the `color_col` name.
+    # If you need to customize the colorbar *after* Seaborn creates it:
+    # fig = ax.get_figure()
+    # if len(fig.axes) > 1: # The plot + colorbar
+    #    # The colorbar is usually the last axes added by seaborn
+    #    cbar_ax = fig.axes[-1]
+    #    # To ensure it's actually a colorbar (requires: import matplotlib.colorbar)
+    #    # if isinstance(cbar_ax, matplotlib.colorbar.ColorbarBase):
+    #    #    cbar_ax.set_label(f"Custom Label for {color_col}")
+    #    pass # In most cases, Seaborn's default is sufficient.
+
+    plt.grid(True, linestyle='--', alpha=0.6)
+    plt.show()
+
+# Example Usage:
+print("\nGenerating 2D Scatter Plot with Color Encoding...")
+
 def get_duplicated_lines(df):
     return df[df.duplicated()]
 

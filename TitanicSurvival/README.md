@@ -12,8 +12,8 @@ The project utilized the classic Titanic dataset, comprising `train.csv` (for mo
 
 The project followed a standard data science workflow:
     *   **Exploratory Data Analysis (EDA):** Initial data inspection revealed data types, missing values (notably in 'Age', 'Cabin', and 'Embarked'), and distributions. Bivariate analysis was performed to understand relationships between numerical/categorical features and the 'Survived' target. We can identify obvious correlation between 'Sex' and 'Survived', as well as 'Family Size' and 'Survived'.
-![](sex_survived.png)
 ![](family_size.png)
+![](sex_survived.png)
     Trivariate analysis also shows correlations between two features and "Survived". Such as ("Sex", "Age", "Survived") and ("Sex", "PClass", "Survived").
 ![](age_sex_survived.png)
 ![](sex_pclass_survived.png)  

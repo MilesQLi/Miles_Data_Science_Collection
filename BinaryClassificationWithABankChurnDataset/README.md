@@ -45,10 +45,11 @@ This project addresses the common business problem of customer churn prediction 
         *   Monitor account activity closely and trigger alerts for prolonged inactivity.
 
 
-![shap2](shap2.png)
+<img src="shap2.png" width="700" alt="shap_gender">
 
 4.  **Gender (Female - Pink/Right, confirmed by Violin Plot):**
-    *   **Insight:** The model indicates that **female customers** have a slightly higher likelihood of churning compared to male customers.
+    *   **Insight:** The model indicates that **female customers** have a slightly higher likelihood of churning compared to male customers. This is also reflected in the stacked bar plot.
+<img src="stacked_gender.png" width="500" alt="stack_gender">
     *   **Business Implication:** This requires sensitive investigation. It could be related to specific product needs, communication preferences, or life events that disproportionately affect female customers' banking relationships.
     *   **Action:**
         *   Conduct further research (surveys, focus groups) to understand the specific pain points or unmet needs of female customers.
@@ -61,7 +62,7 @@ This project addresses the common business problem of customer churn prediction 
         *   Segment high-balance customers and offer them premium services, dedicated relationship managers, or preferential rates to enhance loyalty.
         *   Monitor competitor offerings for this segment.
 
-![shap1](shap1.png)
+<img src="shap1.png" width="700" alt="shap_geography">
 
 6.  **Geography (Germany - High is Pink/Right, confirmed by Violin Plot):**
     *   **Insight:** Customers located in **Germany** are significantly more likely to churn compared to those in France or Spain.

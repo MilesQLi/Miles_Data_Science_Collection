@@ -7,13 +7,16 @@ The primary objective of this project was to develop predictive models to determ
 The project utilized the classic Titanic dataset, comprising `train.csv` (for model training and analysis) and `tested.csv` (for testing, although survival outcomes were present, allowing for evaluation). The dataset contains passenger information such as class, sex, age, fare, cabin, and port of embarkation.
 
 **3. Methodology**
+
+
+
 The project followed a standard data science workflow:
     *   **Exploratory Data Analysis (EDA):** Initial data inspection revealed data types, missing values (notably in 'Age', 'Cabin', and 'Embarked'), and distributions. Bivariate analysis was performed to understand relationships between numerical/categorical features and the 'Survived' target. We can identify obvious correlation between 'Sex' and 'Survived', as well as 'Family Size' and 'Survived'.
-    <img src="sex_survived.png" width="600" alt="sex_survived">
-    <img src="family_size.png" width="600" alt="family_size">
+![](sex_survived.png)
+![](family_size.png)
     Trivariate analysis also shows correlations between two features and "Survived". Such as ("Sex", "Age", "Survived") and ("Sex", "PClass", "Survived").
-    <img src="age_sex_survived.png" width="700" alt="age_sex_survived">
-    <img src="sex_pclass_survived.png" width="700" alt="sex_pclass_survived"> 
+![](age_sex_survived.png)
+![](sex_pclass_survived.png)  
     *   **Feature Engineering:** Several new features were created to enhance predictive power:
         *   `Family Size`: Sum of 'SibSp' (siblings/spouses) and 'Parch' (parents/children) plus 1.
         *   `Age Interval` & `Fare Interval`: Binned versions of 'Age' and 'Fare'.

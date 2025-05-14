@@ -400,10 +400,10 @@ def plot_all_num_vs_target(df, target_col, exclude_cols=None, palette="viridis")
         plt.subplot(1, 2, 2)
         # Check if target_col is suitable for x-axis in boxplot (categorical or few numerics)
         if df[target_col].nunique() < 20 : # Arbitrary threshold, adjust as needed
-            sns.boxplot(x=target_col, y=col, data=df, palette=palette)
+            sns.boxplot(hue=target_col, legend=False, y=col, data=df, palette=palette)
             plt.title(f'{col} vs {target_col}')
         else: # If target has too many unique values, a scatter plot might be better
-            sns.scatterplot(x=target_col, y=col, data=df, alpha=0.6, color=sns.color_palette(palette, 1)[0])
+            sns.scatterplot(hue=target_col, legend=False, y=col, data=df, alpha=0.6, color=sns.color_palette(palette, 1)[0])
             plt.title(f'{col} vs Continuous {target_col}')
             
         plt.xlabel(target_col)
@@ -413,30 +413,31 @@ def plot_all_num_vs_target(df, target_col, exclude_cols=None, palette="viridis")
         plt.tight_layout(rect=[0, 0, 1, 0.98]) # Adjust rect to make space for suptitle
         plt.show()
     return
-
 def plot_all_cat_vs_target(df, target_col, exclude_cols=None, palette="Set2"):
     """
-    Generates count plots and bar plots (mean of target) for all categorical features.
+    Generates count plots and relationship plots (mean of target or stacked bar)
+    for all categorical features against a target column.
 
     Args:
         df (pd.DataFrame): The input DataFrame.
-        target_col (str): The name of the target column (should be numeric for the barplot mean).
+        target_col (str): The name of the target column.
         exclude_cols (list, optional): A list of columns to exclude from plotting. Defaults to None.
         palette (str or list, optional): Color palette to use for plots. Defaults to "Set2".
     """
     if target_col not in df.columns:
         print(f"Error: Target column '{target_col}' not found in DataFrame.")
         return
-    
-    # Ensure target_col is numeric for the mean calculation in barplot
-    if not pd.api.types.is_numeric_dtype(df[target_col]):
-        print(f"Warning: Target column '{target_col}' is not numeric. Mean calculation in barplot might not be meaningful.")
-        # Consider converting if it's binary categorical (e.g., 'Yes'/'No' to 1/0)
-        # Or, change the estimator in sns.barplot if appropriate.
+
+    is_target_numeric = pd.api.types.is_numeric_dtype(df[target_col])
+    is_target_categorical = df[target_col].dtype in ['object', 'category']
+
+    if not is_target_numeric and not is_target_categorical:
+        print(f"Warning: Target column '{target_col}' is neither distinctly numeric nor categorical according to dtype. Ensure it's appropriate for plotting.")
+        # You might want to force a conversion or raise an error depending on strictness
 
     cat_fields = df.select_dtypes(include=['object', 'category']).columns.tolist()
 
-    # Ensure target_col is not in cat_fields to plot against itself (if it's categorical)
+    # Ensure target_col is not in cat_fields if it's also categorical (to avoid plotting against itself as a feature)
     if target_col in cat_fields:
         cat_fields.remove(target_col)
 
@@ -449,56 +450,75 @@ def plot_all_cat_vs_target(df, target_col, exclude_cols=None, palette="Set2"):
 
     print(f"--- Plotting Categorical Features vs Target ('{target_col}') ---")
     for col in cat_fields:
-        if col == target_col: # Safeguard
+        if col == target_col: # Safeguard, though removed from cat_fields if target is categorical
             continue
 
-        plt.figure(figsize=(14, 6)) # Increased figure size
+        plt.figure(figsize=(16, 7)) # Increased figure size slightly
 
         # 1. Count Plot (Distribution of the categorical feature)
         plt.subplot(1, 2, 1)
-        # Use hue if target is categorical and has few unique values for better distinction
-        is_target_categorical_for_hue = df[target_col].nunique() < 10 and df[target_col].dtype in ['object', 'category']
+        # Determine top N categories to plot to avoid overly cluttered plots
+        # Show top 15 categories by count for 'col'
+        top_n_categories = df[col].value_counts().nlargest(15).index
 
-        if is_target_categorical_for_hue:
-             # This shows counts of 'col' categories, colored by 'target_col'
-            sns.countplot(x=col, data=df, hue=target_col, palette=palette, order=df[col].value_counts().index[:15]) # Show top 15
+        # Use hue if target is categorical and has few unique values for better distinction
+        # Let's refine this: hue is good if target is categorical
+        use_hue_in_countplot = is_target_categorical and df[target_col].nunique() < 10
+
+        if use_hue_in_countplot:
+            sns.countplot(x=col, data=df[df[col].isin(top_n_categories)], hue=target_col, palette=palette, order=top_n_categories)
         else:
-            # This shows counts of 'col' categories, each bar a different color from the palette if desired
-            # Or use a single color if preferred. For variety, let's use the palette.
-            sns.countplot(x=col, data=df, palette=palette, order=df[col].value_counts().index[:15]) # Show top 15
-        
+            sns.countplot(x=col, data=df[df[col].isin(top_n_categories)], palette=palette, order=top_n_categories)
+
         plt.title(f'Distribution of {col}')
         plt.xlabel(col)
         plt.ylabel('Count')
-        plt.xticks(rotation=45, ha='right') # Rotate labels for better readability
+        plt.xticks(rotation=45, ha='right')
+        if use_hue_in_countplot:
+            plt.legend(title=target_col)
 
-        # 2. Bar Plot (Mean of target_col by category)
-        plt.subplot(1, 2, 2)
-        # Only makes sense if target_col is numeric or can be meaningfully averaged (e.g., binary 0/1)
-        if pd.api.types.is_numeric_dtype(df[target_col]):
-            sns.barplot(x=col, y=target_col, data=df, palette=palette, estimator='mean', ci=None, order=df[col].value_counts().index[:15]) # Show top 15, remove confidence interval bars
+
+        # 2. Relationship Plot (Mean of target OR Stacked Bar for categorical target)
+        ax2 = plt.subplot(1, 2, 2)
+        if is_target_numeric:
+            # Bar Plot (Mean of numeric target_col by category)
+            sns.barplot(x=col, y=target_col, data=df[df[col].isin(top_n_categories)],
+                        palette=palette, estimator='mean', errorbar=None, order=top_n_categories, ax=ax2)
             plt.title(f'Mean {target_col} by {col}')
-        else: # If target is non-numeric, show counts of target by category (less direct than countplot with hue)
-            # Or consider a grouped bar chart showing proportions.
-            # For simplicity, let's show counts if target is not numeric, though countplot with hue is often better.
-            # This plot might become redundant if the target is categorical and used as hue in the countplot.
-            try: # Attempt to plot grouped counts if target is categorical
-                temp_df = df.groupby(col)[target_col].value_counts(normalize=True).mul(100).rename('percentage').reset_index()
-                sns.barplot(x=col, y='percentage', hue=target_col, data=temp_df, palette=palette, order=df[col].value_counts().index[:15])
-                plt.title(f'Percentage of {target_col} within {col}')
-                plt.ylabel('Percentage')
-            except Exception:
-                 plt.text(0.5, 0.5, f'{target_col} is non-numeric.\nConsider relationship differently.',
-                         horizontalalignment='center', verticalalignment='center', transform=plt.gca().transAxes)
-                 plt.title(f'{target_col} by {col}')
+            plt.ylabel(f'Mean {target_col}')
+        elif is_target_categorical:
+            # Stacked Bar Plot (Distribution of categorical target_col within each category of col)
+            # We want to show percentages for better comparison (100% stacked bar)
+            # Filter for top N categories of 'col' first
+            filtered_df = df[df[col].isin(top_n_categories)]
+
+            # Create a cross-tabulation and normalize it
+            cross_tab = pd.crosstab(filtered_df[col], filtered_df[target_col], normalize='index') * 100
+            # Reorder rows to match top_n_categories for consistency with countplot
+            cross_tab = cross_tab.reindex(top_n_categories).dropna(how='all')
+
+            # Get enough colors from the palette for the target categories
+            num_target_cats = df[target_col].nunique()
+            plot_colors = sns.color_palette(palette, n_colors=num_target_cats)
+
+            cross_tab.plot(kind='bar', stacked=True, color=plot_colors, ax=ax2, width=0.8)
+            plt.title(f'% {target_col} Distribution within {col}')
+            plt.ylabel('Percentage (%)')
+            plt.legend(title=target_col, bbox_to_anchor=(1.05, 1), loc='upper left') # Move legend out
+        else:
+            # Fallback if target is neither clearly numeric nor categorical (e.g., mixed type)
+            # This case should ideally be handled by data cleaning prior to plotting
+            plt.text(0.5, 0.5, f'{target_col} is not clearly numeric or categorical.\nPlot type undetermined.',
+                     horizontalalignment='center', verticalalignment='center', transform=ax2.transAxes)
+            plt.title(f'{target_col} by {col}')
+            plt.ylabel('Value')
 
 
         plt.xlabel(col)
-        plt.ylabel(f'Mean {target_col}' if pd.api.types.is_numeric_dtype(df[target_col]) else 'Value')
         plt.xticks(rotation=45, ha='right')
 
-        plt.suptitle(f'Analysis of Categorical Feature: {col}', fontsize=16, y=1.02)
-        plt.tight_layout(rect=[0, 0, 1, 0.98]) # Adjust rect to make space for suptitle
+        plt.suptitle(f'Analysis of Categorical Feature: {col} vs Target: {target_col}', fontsize=16, y=1.03)
+        plt.tight_layout(rect=[0, 0, 1, 0.97]) # Adjust rect to make space for suptitle
         plt.show()
     return
 

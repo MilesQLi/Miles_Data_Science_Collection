@@ -253,9 +253,9 @@ def training_binary_classification_with_lgbm(train_x,train_y,valid_x=None,valid_
             valid_x[col] = valid_x[col].astype('category')
 
     if params is None:
-        model = LGBMClassifier(verbose=5, is_unbalance = unbalance)
+        model = LGBMClassifier(verbosity=-1, is_unbalance = unbalance)
     else:
-        model = LGBMClassifier(**params, verbose=5, is_unbalance = unbalance)
+        model = LGBMClassifier(**params, verbosity=-1, is_unbalance = unbalance)
     
     if valid_x is not None and valid_y is not None:
         model.fit(train_x, train_y, eval_set=[(valid_x, valid_y)], eval_metric='auc', callbacks=[lgb.log_evaluation(period=1), lgb.early_stopping(early_stopping_rounds,first_metric_only =True)])

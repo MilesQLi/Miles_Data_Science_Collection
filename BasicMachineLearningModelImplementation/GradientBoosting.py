@@ -1,5 +1,44 @@
 import torch
 import numpy as np 
+from sklearn.tree import DecisionTreeRegressor
+
+
+class GradientBoostingBinaryClassifier:
+    def __init__(self, n_estimators=100, learning_rate=0.1, max_depth=3, min_samples_split=2, reg_lambda=1.0):
+        self.n_estimators = n_estimators
+        self.lr = learning_rate
+        self.max_depth = max_depth
+        self.min_samples_split = min_samples_split
+        self.reg_lambda = reg_lambda
+        self.trees = []
+
+    def _sigmoid(self, x):
+        return 1 / (1 + np.exp(-x))
+
+    def fit(self, X, y):
+        y = y.astype(np.float64)
+        self.F0 = np.log(y.mean() / (1 - y.mean()))
+        F = np.full_like(y, self.F0)
+        for _ in range(self.n_estimators):
+            p = self._sigmoid(F)
+            grad = y - p
+            hess = p * (1 - p) + self.reg_lambda
+            target = grad / hess
+            tree = DecisionTreeRegressor(max_depth=self.max_depth, min_samples_split=self.min_samples_split)
+            tree.fit(X, target)
+            update = tree.predict(X)
+            F += self.lr * update
+            self.trees.append(tree)
+
+    def predict_proba(self, X):
+        F = np.full(X.shape[0], self.F0)
+        for tree in self.trees:
+            F += self.lr * tree.predict(X)
+        proba = self._sigmoid(F)
+        return np.vstack([1 - proba, proba]).T
+
+    def predict(self, X):
+        return (self.predict_proba(X)[:, 1] > 0.5).astype(int)
 
 class TreeNode:
     def __init__(self, is_leaf=False, leaf_value=None, feature_idx=None, threshold=None,

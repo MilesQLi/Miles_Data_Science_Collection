@@ -8,8 +8,21 @@ import pandas as pd
 from sklearn.utils import resample
 from xgboost import XGBRegressor
 from catboost import CatBoostRegressor
+from lightgbm import LGBMClassifier
+from sklearn.model_selection import cross_val_score
+import numpy as np
 
 
+def cross_val_model_auto(df,target,exclude_cols=[]):
+    x = df.drop(exclude_cols+[target],axis=1)
+    y = df[target]
+    cat_cols = x.select_dtypes(include='object').columns.tolist()
+    for col in cat_cols:
+        x[col] = x[col].astype('category')
+    model = LGBMClassifier(n_estimators=1000,verbosity= -1)
+    scores = cross_val_score(model,x,y,cv=5)
+    print("scores:",scores)
+    return np.mean(scores), np.std(scores)
 
 
 def stack_model_training(df, target_col,base_model_class = None, base_model_params = None, meta_model_class = None, meta_model_params = None,index_cols=[],cross_val=True):

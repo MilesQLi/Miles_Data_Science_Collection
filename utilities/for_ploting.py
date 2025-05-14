@@ -145,6 +145,14 @@ def plot_mixed_correlation_heatmap(df, features, figsize=(12, 10), cmap="coolwar
     plt.show()
 
 
+def plot_pie_chart(df,target_col):
+    colors = ['skyblue', 'salmon','lightgreen','orange', 'purple', 'pink', 'brown', 'grey','cyan']  # You can use any valid matplotlib colors
+    counts = df[target_col].value_counts()
+    ax = counts.plot.pie(autopct='%.2f%%',colors=colors[:len(counts)])
+    ax.set_title("Percentage of "+target_col)
+    plt.tight_layout()
+    plt.show()
+
 def plot_2d_scatter_with_color_encoding(df: pd.DataFrame, x_col: str, y_col: str, color_col: str):
     """
     Generates a 2D scatter plot where point color is determined by a third numerical column.

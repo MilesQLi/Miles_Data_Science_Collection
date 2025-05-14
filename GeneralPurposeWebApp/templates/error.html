@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Application Error</title>
+     <style>
+        body { font-family: sans-serif; margin: 20px; background-color: #f8d7da; color: #721c24; }
+        .error-container { border: 1px solid #f5c6cb; padding: 20px; border-radius: 5px; background-color: #f8d7da;}
+        h1 { color: #721c24; }
+    </style>
+</head>
+<body>
+    <div class="error-container">
+        <h1>Application Error</h1>
+        <p>Sorry, the application could not start correctly.</p>
+        <p><strong>Details:</strong> {{ error_message }}</p>
+        <p>Please check the server logs for more information and ensure the configuration file (`config.json`) and model file exist and are correctly formatted.</p>
+    </div>
+</body>
+</html>

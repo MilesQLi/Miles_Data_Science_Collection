@@ -1,0 +1,248 @@
+{
+  "project_title": "Term Deposit Subcription Prediction",
+  "model_type": "classifier",
+  "model_path": "./LGBMClassifier_model.txt",
+  "target_name": "y",
+  "target_type": "categorical",
+  "class_names": [
+    "no",
+    "yes"
+  ],
+  "features": [
+    {
+      "name": "age",
+      "type": "numerical",
+      "range": [
+        18.0,
+        95.0
+      ],
+      "dtype": "int64"
+    },
+    {
+      "name": "job",
+      "type": "categorical",
+      "options": [
+        "admin.",
+        "blue-collar",
+        "entrepreneur",
+        "housemaid",
+        "management",
+        "retired",
+        "self-employed",
+        "services",
+        "student",
+        "technician",
+        "unemployed",
+        "unknown"
+      ],
+      "dtype": "object"
+    },
+    {
+      "name": "marital",
+      "type": "categorical",
+      "options": [
+        "divorced",
+        "married",
+        "single"
+      ],
+      "dtype": "object"
+    },
+    {
+      "name": "education",
+      "type": "categorical",
+      "options": [
+        "primary",
+        "secondary",
+        "tertiary",
+        "unknown"
+      ],
+      "dtype": "object"
+    },
+    {
+      "name": "default",
+      "type": "categorical",
+      "options": [
+        "no",
+        "yes"
+      ],
+      "dtype": "object"
+    },
+    {
+      "name": "balance",
+      "type": "numerical",
+      "range": [
+        -8019.0,
+        102127.0
+      ],
+      "dtype": "int64"
+    },
+    {
+      "name": "housing",
+      "type": "categorical",
+      "options": [
+        "no",
+        "yes"
+      ],
+      "dtype": "object"
+    },
+    {
+      "name": "loan",
+      "type": "categorical",
+      "options": [
+        "no",
+        "yes"
+      ],
+      "dtype": "object"
+    },
+    {
+      "name": "contact",
+      "type": "categorical",
+      "options": [
+        "cellular",
+        "telephone",
+        "unknown"
+      ],
+      "dtype": "object"
+    },
+    {
+      "name": "day",
+      "type": "numerical",
+      "range": [
+        1.0,
+        31.0
+      ],
+      "dtype": "int64"
+    },
+    {
+      "name": "month",
+      "type": "categorical",
+      "options": [
+        "apr",
+        "aug",
+        "dec",
+        "feb",
+        "jan",
+        "jul",
+        "jun",
+        "mar",
+        "may",
+        "nov",
+        "oct",
+        "sep"
+      ],
+      "dtype": "object"
+    },
+    {
+      "name": "duration",
+      "type": "numerical",
+      "range": [
+        0.0,
+        4918.0
+      ],
+      "dtype": "int64"
+    },
+    {
+      "name": "campaign",
+      "type": "numerical",
+      "range": [
+        1.0,
+        63.0
+      ],
+      "dtype": "int64"
+    },
+    {
+      "name": "pdays",
+      "type": "numerical",
+      "range": [
+        -1.0,
+        871.0
+      ],
+      "dtype": "int64"
+    },
+    {
+      "name": "previous",
+      "type": "numerical",
+      "range": [
+        0.0,
+        275.0
+      ],
+      "dtype": "int64"
+    },
+    {
+      "name": "poutcome",
+      "type": "categorical",
+      "options": [
+        "failure",
+        "other",
+        "success",
+        "unknown"
+      ],
+      "dtype": "object"
+    },
+    {
+      "name": "was_contacted_previously",
+      "type": "numerical",
+      "range": [
+        0.0,
+        1.0
+      ],
+      "dtype": "int32"
+    },
+    {
+      "name": "has_negative_balance",
+      "type": "numerical",
+      "range": [
+        0.0,
+        1.0
+      ],
+      "dtype": "int32"
+    },
+    {
+      "name": "balance_log_shifted",
+      "type": "numerical",
+      "range": [
+        0.0,
+        11.60957111627176
+      ],
+      "dtype": "float64"
+    },
+    {
+      "name": "duration_log",
+      "type": "numerical",
+      "range": [
+        0.0,
+        8.50086053679534
+      ],
+      "dtype": "float64"
+    },
+    {
+      "name": "campaign_log",
+      "type": "numerical",
+      "range": [
+        0.6931471805599453,
+        4.1588830833596715
+      ],
+      "dtype": "float64"
+    },
+    {
+      "name": "previous_log",
+      "type": "numerical",
+      "range": [
+        0.0,
+        5.62040086571715
+      ],
+      "dtype": "float64"
+    },
+    {
+      "name": "season",
+      "type": "categorical",
+      "options": [
+        "Autumn",
+        "Spring",
+        "Summer",
+        "Winter"
+      ],
+      "dtype": "object"
+    }
+  ]
+}

@@ -258,41 +258,41 @@ def training_binary_classification_with_lgbm(train_x,train_y,valid_x=None,valid_
         model = LGBMClassifier(**params, verbosity=-1, is_unbalance = unbalance)
     
     if valid_x is not None and valid_y is not None:
-        model.fit(train_x, train_y, eval_set=[(valid_x, valid_y)], eval_metric='auc', callbacks=[lgb.log_evaluation(period=1), lgb.early_stopping(early_stopping_rounds,first_metric_only =True)])
+        model.fit(train_x, train_y, eval_set=[(valid_x, valid_y)], eval_metric="average_precision", callbacks=[lgb.log_evaluation(period=1), lgb.early_stopping(early_stopping_rounds,first_metric_only =True)])
     else:
-        model.fit(train_x, train_y, eval_set=[(train_x, train_y)], eval_metric='auc', callbacks=[lgb.log_evaluation(period=1), lgb.early_stopping(early_stopping_rounds,first_metric_only =True)])
+        model.fit(train_x, train_y, eval_set=[(train_x, train_y)], eval_metric="average_precision", callbacks=[lgb.log_evaluation(period=1), lgb.early_stopping(early_stopping_rounds,first_metric_only =True)])
 
     results = model.evals_result_
-    # Extract the AUROC scores for the validation set
+    # Extract the AUPRC scores for the validation set
     # The key 'valid_0' is the default name for the first eval_set
-    if 'valid_0' in results and 'auc' in results['valid_0']:
+    if 'valid_0' in results and "average_precision" in results['valid_0']:
         using_validation = True
     else:
         using_validation = False
     if using_validation:
-        validation_auroc = results['valid_0']['auc']
+        validation_auprc = results['valid_0']["average_precision"]
     else:
-        validation_auroc = results['training']['auc']
-    iterations = range(1, len(validation_auroc) + 1) # Iteration numbers (start from 1)
+        validation_auprc = results['training']["average_precision"]
+    iterations = range(1, len(validation_auprc) + 1) # Iteration numbers (start from 1)
 
     # --- Step 5: Plot ---
     plt.figure(figsize=(10, 6))
     if using_validation:
-        plt.plot(iterations, validation_auroc, label='Validation AUROC', marker='.')
+        plt.plot(iterations, validation_auprc, label='Validation AUPRC', marker='.')
     else:
-        plt.plot(iterations, validation_auroc, label='Training AUROC', marker='.')
-    plt.title('AUROC vs. Boosting Iteration (Step)')
+        plt.plot(iterations, validation_auprc, label='Training AUPRC', marker='.')
+    plt.title('AUPRC vs. Boosting Iteration (Step)')
     plt.xlabel('Boosting Iteration (Step)')
-    plt.ylabel('AUROC')
-    plt.xticks(np.arange(0, len(validation_auroc)+1, step=max(1, len(validation_auroc)//10))) # Adjust tick frequency
+    plt.ylabel('AUPRC')
+    plt.xticks(np.arange(0, len(validation_auprc)+1, step=max(1, len(validation_auprc)//10))) # Adjust tick frequency
     plt.grid(True)
     plt.legend()
     plt.show()
 
     # Find the best iteration if early stopping was used
     if model.best_iteration_:
-        print(f"\nBest Iteration (based on validation AUROC): {model.best_iteration_}")
-        print(f"Best Validation AUROC: {model.best_score_['valid_0']['auc']:.4f}")
+        print(f"\nBest Iteration (based on validation AUPRC): {model.best_iteration_}")
+        print(f"Best Validation AUPRC: {model.best_score_['valid_0']['auc']:.4f}")
     return model
 
 def training_multi_classification_with_lgbm(train_x,train_y,valid_x=None,valid_y=None,params=None,split=None,early_stopping_rounds=100):
@@ -357,7 +357,7 @@ def evaluate_binary_classification_model(model, name, test_x, test_y):
     """
     Evaluate a binary classification model using various metrics.
     """
-    from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, classification_report, confusion_matrix, roc_curve
+    from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, classification_report, confusion_matrix, roc_curve, average_precision_score
     from matplotlib import pyplot as plt
     import seaborn as sns
 
@@ -374,12 +374,14 @@ def evaluate_binary_classification_model(model, name, test_x, test_y):
     recall = recall_score(test_y, y_pred)
     f1 = f1_score(test_y, y_pred)
     roc_auc = roc_auc_score(test_y, y_pred_proba)
+    average_precision = average_precision_score(test_y, y_pred_proba)
 
     print(f"Accuracy: {accuracy:.4f}")
     print(f"Precision: {precision:.4f}")
     print(f"Recall: {recall:.4f}")
     print(f"F1 Score: {f1:.4f}")
     print(f"AUC-ROC: {roc_auc:.4f}")
+    print(f"AUPRC: {average_precision:.4f}")
     print("\nClassification Report:\n", classification_report(test_y, y_pred))
     # Confusion Matrix
     cm = confusion_matrix(test_y, y_pred)

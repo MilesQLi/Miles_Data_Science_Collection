@@ -40,6 +40,10 @@ class GradientBoostingBinaryClassifier:
     def predict(self, X):
         return (self.predict_proba(X)[:, 1] > 0.5).astype(int)
 
+
+
+##################################################################
+
 class TreeNode:
     def __init__(self, is_leaf=False, leaf_value=None, feature_idx=None, threshold=None,
                  left_child=None, right_child=None):

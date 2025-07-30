@@ -292,7 +292,7 @@ def training_binary_classification_with_lgbm(train_x,train_y,valid_x=None,valid_
     # Find the best iteration if early stopping was used
     if model.best_iteration_:
         print(f"\nBest Iteration (based on validation AUPRC): {model.best_iteration_}")
-        print(f"Best Validation AUPRC: {model.best_score_['valid_0']['auc']:.4f}")
+        print(f"Best Validation AUPRC: {model.best_score_['valid_0']['average_precision']:.4f}")
     return model
 
 def training_multi_classification_with_lgbm(train_x,train_y,valid_x=None,valid_y=None,params=None,split=None,early_stopping_rounds=100):

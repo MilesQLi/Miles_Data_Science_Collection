@@ -1,4 +1,6 @@
 import pandas as pd
+from typing import List
+from tqdm import tqdm
 
 def cluster_and_calculate_means(
     df: pd.DataFrame,
@@ -231,6 +233,68 @@ def cluster_and_assign_group_prediction(
 
 
 
+def target_encode_multiclass(
+    df: pd.DataFrame, 
+    features: List[str], 
+    target: str
+) -> pd.DataFrame:
+    """
+    Performs target encoding for a multi-class target variable.
+
+    For each categorical feature, it calculates the probability of each target class
+    and creates new columns with these probabilities. The original categorical 
+    features are then dropped.
+
+    Args:
+        df (pd.DataFrame): The input DataFrame.
+        features (List[str]): A list of categorical column names to be encoded.
+        target (str): The name of the target column, which should contain class strings.
+
+    Returns:
+        pd.DataFrame: A DataFrame with the original features replaced by their
+                      target-encoded counterparts.
+    """
+    # Create a copy to avoid modifying the original DataFrame
+    df_encoded = df.copy()
+
+    # Get the unique classes from the target column
+    target_classes = df[target].unique()
+    
+    # 1. One-Hot Encode the Target column to calculate probabilities easily
+    # This creates a temporary dataframe with columns for each class (e.g., target_cat, target_dog)
+    # The values are 1 if the row corresponds to that class, 0 otherwise.
+    one_hot_target = pd.get_dummies(df[target], prefix=target)
+
+    # Combine the one-hot encoded target with the features for grouping
+    temp_df = pd.concat([df[features], one_hot_target], axis=1)
+
+    # 2. Iterate through each feature to encode
+    for feature in tqdm(features, desc="Encoding Features"):
+        
+        # 3. Calculate the mean of each target class for each category in the feature
+        # This gives us the conditional probability P(target_class | feature_category)
+        # The result is a mapping from each feature's category to the class probabilities.
+        encoding_map = temp_df.groupby(feature)[one_hot_target.columns].mean()
+        
+        # 4. Create new, descriptive column names for the encoded features
+        # e.g., 'City' -> 'City_target_cat_encoded', 'City_target_dog_encoded'
+        new_col_names = {col: f"{feature}_{col}_encoded" for col in encoding_map.columns}
+        encoding_map.rename(columns=new_col_names, inplace=True)
+        
+        # 5. Merge the new encoded columns back into the main dataframe
+        # We use a left merge to ensure we keep all original rows
+        df_encoded = pd.merge(
+            df_encoded, 
+            encoding_map,
+            how='left',
+            left_on=feature,
+            right_index=True # Merge on the index of encoding_map (which is the feature's categories)
+        )
+        
+    # 6. Drop the original categorical features that have now been encoded
+    df_encoded.drop(columns=features, inplace=True)
+
+    return df_encoded
 
 def consolidate_feature_values_by_abs_shap( # Renamed for clarity
     data: pd.DataFrame,
